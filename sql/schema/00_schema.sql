@@ -260,7 +260,7 @@ create index on schema_usage_data(sud_timestamp);
 create table stat_statements_data(
 ssd_timestamp timestamp not null,
 ssd_host_id int not null,
-ssd_user_id int not null,
+ssd_user_id int not null default 0,
 ssd_query text not null,
 ssd_query_id int8 not null,
 ssd_calls int8,

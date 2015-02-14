@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 from datetime import datetime, timedelta
+import topstats
 import topsprocs
 import flotgraph
 import time
@@ -13,7 +14,6 @@ import cherrypy
 
 
 class MonitorFrontend(object):
-
     def __init__(self, hostId):
         self.hostId = hostId
 
@@ -21,25 +21,35 @@ class MonitorFrontend(object):
         hostId, hostUiName = hosts.ensureHostIdAndUIShortname(max(hostId, self.hostId))
         days = (cherrypy.request.cookie['days'].value if 'days' in cherrypy.request.cookie else '8')
         sprocs_to_show = (int(cherrypy.request.cookie['sprocs_to_show'].value) if 'sprocs_to_show'
-                          in cherrypy.request.cookie else 10)
+                                                                                  in cherrypy.request.cookie else 10)
         graph_load = None
         graph_wal = None
         graph_size = None
         graph_dbstats = None
         top_sprocs = None
-        global_announcement = reportdata.getGetActiveFrontendAnnouncementIfAny()    # fyi - no escaping is performed deliberately
+        global_announcement = reportdata.getGetActiveFrontendAnnouncementIfAny()  # fyi - no escaping is performed deliberately
 
         if tplE._settings['show_load']:
             graph_load = flotgraph.Graph('graph_load', 'left', 30)
             graph_load.addSeries('CPU Load 15min avg', 'acpu_15min_avg', '#FF0000')
+
             cpuload = topsprocs.getCpuLoad(hostId, days)
             for p in cpuload['load_15min_avg']:
                 graph_load.addPoint('acpu_15min_avg', int(time.mktime(p[0].timetuple()) * 1000), p[1])
 
             load = topsprocs.getLoad(hostId, days)
             graph_load.addSeries('Sproc Load 15 min', 'load_15min')
+
             for p in load['load_15min']:
                 graph_load.addPoint('load_15min', int(time.mktime(p[0].timetuple()) * 1000), p[1])
+
+            if tplE._settings['show_stat_load']:
+                graph_load.addSeries('Statements Load 15 min', 'statement_load_15min', '#FFFFFF')
+                stat_load = topstats.getStatLoad(hostId)
+                for p in stat_load['stat_load_15min']:
+                    graph_load.addPoint('statement_load_15min', int(time.mktime(p[0].timetuple()) * 1000), p[1])
+
+
             graph_load = graph_load.render()
 
         if tplE._settings['show_wal']:
@@ -54,7 +64,7 @@ class MonitorFrontend(object):
                 graph_wal.addSeries('#Blocked processes (> 5s)', 'blocked_processes', '#FF0000', None, 2)
                 for p in blocked_processes:
                     if len(walvolumes['wal_15min_growth']) > 0 and p[0].timetuple() >= walvolumes['wal_15min_growth'
-                            ][0][0].timetuple():  # aligning timeline with WAL data
+                    ][0][0].timetuple():  # aligning timeline with WAL data
                         graph_wal.addPoint('blocked_processes', int(time.mktime(p[0].timetuple()) * 1000), p[1])
             graph_wal = graph_wal.render()
 
@@ -87,9 +97,9 @@ class MonitorFrontend(object):
             top_sprocs['hours3avg'] = self.renderTop10LastHours(topsprocs.avgRuntimeOrder, 3, hostId, sprocs_to_show)
 
             top_sprocs['hours1total'] = self.renderTop10LastHours(topsprocs.totalRuntimeOrder, 1, hostId,
-                    sprocs_to_show)
+                                                                  sprocs_to_show)
             top_sprocs['hours3total'] = self.renderTop10LastHours(topsprocs.totalRuntimeOrder, 3, hostId,
-                    sprocs_to_show)
+                                                                  sprocs_to_show)
 
             top_sprocs['hours1calls'] = self.renderTop10LastHours(topsprocs.totalCallsOrder, 1, hostId, sprocs_to_show)
             top_sprocs['hours3calls'] = self.renderTop10LastHours(topsprocs.totalCallsOrder, 3, hostId, sprocs_to_show)

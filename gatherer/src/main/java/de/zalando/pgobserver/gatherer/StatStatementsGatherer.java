@@ -45,6 +45,7 @@ public class StatStatementsGatherer extends ADBGatherer {
                 v = new StatStatementsValue();
 
                 v.timestamp = rs.getTimestamp("timestamp");
+                v.userId = rs.getInt("userId");
                 v.query = rs.getString("query");
                 v.calls = rs.getLong("calls");
                 v.total_time = rs.getLong("total_time");
@@ -69,7 +70,7 @@ public class StatStatementsGatherer extends ADBGatherer {
 
                 PreparedStatement ps = conn.prepareStatement(
                         "INSERT INTO monitor_data.stat_statements_data (ssd_timestamp, ssd_host_id, ssd_query, ssd_query_id, ssd_calls,"
-                            + " ssd_total_time, ssd_blks_read, ssd_blks_written, ssd_temp_blks_read, ssd_temp_blks_written) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);");
+                            + " ssd_total_time, ssd_blks_read, ssd_blks_written, ssd_temp_blks_read, ssd_temp_blks_written,ssd_user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?);");
 
                 while (!valueStore.isEmpty()) {
 
@@ -85,6 +86,7 @@ public class StatStatementsGatherer extends ADBGatherer {
                     ps.setLong(8, v.blks_written);
                     ps.setLong(9, v.temp_blks_read);
                     ps.setLong(10, v.temp_blks_written);
+                    ps.setInt(11, v.userId);
                     ps.execute();
 
                 }
@@ -114,11 +116,12 @@ public class StatStatementsGatherer extends ADBGatherer {
         }
     }
 
-    public String getQuery() {
+    private String getQuery() {
 //        and not (usename = 'postgres' and upper(query) like 'COPY %') ?
         String sql = "with q_data as (\n" +
                 "      select\n" +
                 "      now() as timestamp,\n" +
+                "      s.userId,\n"+
                 "      s.query,\n" +
                 "      sum(s.calls) as calls,\n" +
                 "      round(sum(s.total_time))::int8 as total_time,\n" +
@@ -133,7 +136,7 @@ public class StatStatementsGatherer extends ADBGatherer {
                 "      and total_time > 0\n" +
                 "      and not upper(s.query) like any (array['DEALLOCATE%', 'SET %', 'RESET %', 'BEGIN', 'BEGIN;', 'COMMIT', 'COMMIT;', 'END', 'END;', 'ROLLBACK', 'ROLLBACK;'])\n" +
                 "      group by\n" +
-                "      query\n" +
+                "      query,userId \n" +
                 ")\n" +
                 "select * from (\n" +
                 "      select *\n" +

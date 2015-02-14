@@ -15,6 +15,7 @@ database:
 features:
   run_aggregations: false
   show_load: true
+  show_stat_load: true
   show_wal: true
   show_top_sprocs: true
   show_db_size: true

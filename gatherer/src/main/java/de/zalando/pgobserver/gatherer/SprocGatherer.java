@@ -2,6 +2,7 @@ package de.zalando.pgobserver.gatherer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -20,6 +21,34 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 public class SprocGatherer extends ADBGatherer {
 
+    private static final String QUERY = "SELECT\n" +
+            "  schemaname AS schema_name,\n" +
+            "  funcname  AS function_name, \n" +
+            "  ( select array_to_string(array(select format_type(t,null) from unnest(coalesce(proallargtypes, proargtypes::oid[])) tt (t)),',') ) as func_arguments,\n" +
+            "  array_to_string(proargmodes, ',') AS func_argmodes,\n" +
+            "  calls,\n" +
+            "  self_time,\n" +
+            "  total_time, \n" +
+            "  ( select count(1) from pg_stat_user_functions ff where ff.funcname = f.funcname and ff.schemaname = f.schemaname ) as count_collisions \n" +
+            "FROM\n" +
+            "  pg_stat_user_functions f,\n" +
+            "  pg_proc\n" +
+            "WHERE\n" +
+            "  pg_proc.oid = f.funcid\n" +
+            "  AND schemaname IN ( select name\n" +
+            "                      from ( SELECT nspname, rank() OVER ( PARTITION BY regexp_replace(nspname, E'_api_r[_0-9]+', '', 'i') ORDER BY nspname DESC)\n" +
+            "                             FROM pg_namespace\n" +
+            "                             WHERE %s \n" +
+            "                           ) apis ( name, rank )\n" +
+            "                      where rank <= 2 )";
+
+    private static final String MONITORED_SCHEMAS_QUERY = "select scmc_schema_name_pattern as pattern, scmc_is_pattern_included as is_included from sproc_schemas_monitoring_configuration \n" +
+            "where scmc_host_id = 0\n" +
+            "and not exists (select 1 from sproc_schemas_monitoring_configuration where scmc_host_id =  %s )\n" +
+            "union all\n" +
+            "select scmc_schema_name_pattern as pattern, scmc_is_pattern_included as is_included " +
+            "from sproc_schemas_monitoring_configuration where scmc_host_id = %s";
+
     private SprocIdCache idCache = null;
     private Map<Long, List<SprocPerfValue>> valueStore = null;
     private Map<Integer, Long> lastValueStore = new HashMap<>();
@@ -37,28 +66,7 @@ public class SprocGatherer extends ADBGatherer {
     }
 
     public String getQuery(String schemaFilter) {
-        String sql = "SELECT\n" +
-                "  schemaname AS schema_name,\n" +
-                "  funcname  AS function_name, \n" +
-                "  ( select array_to_string(array(select format_type(t,null) from unnest(coalesce(proallargtypes, proargtypes::oid[])) tt (t)),',') ) as func_arguments,\n" +
-                "  array_to_string(proargmodes, ',') AS func_argmodes,\n" +
-                "  calls,\n" +
-                "  self_time,\n" +
-                "  total_time, \n" +
-                "  ( select count(1) from pg_stat_user_functions ff where ff.funcname = f.funcname and ff.schemaname = f.schemaname ) as count_collisions \n" +
-                "FROM\n" +
-                "  pg_stat_user_functions f,\n" +
-                "  pg_proc\n" +
-                "WHERE\n" +
-                "  pg_proc.oid = f.funcid\n" +
-                "  AND schemaname IN ( select name\n" +
-                "                      from ( SELECT nspname, rank() OVER ( PARTITION BY regexp_replace(nspname, E'_api_r[_0-9]+', '', 'i') ORDER BY nspname DESC)\n" +
-                "                             FROM pg_namespace\n" +
-                "                             WHERE " + schemaFilter + "\n" +
-                "                           ) apis ( name, rank )\n" +
-                "                      where rank <= 2 )";
-
-        return sql;
+        return String.format(QUERY, schemaFilter);
     }
 
     @Override
@@ -115,7 +123,7 @@ public class SprocGatherer extends ADBGatherer {
             sprocValuesInserted = 0;
 
             for (Entry<Long, List<SprocPerfValue>> toStore : valueStore.entrySet()) {
-                for (SprocPerfValue v : toStore.getValue()) {                    
+                for (SprocPerfValue v : toStore.getValue()) {
 
                     sprocsRead++;
 
@@ -158,14 +166,14 @@ public class SprocGatherer extends ADBGatherer {
 
             return true;
         } catch (SQLException se) {
-            LOG.error("",se);
+            LOG.error("", se);
             return false;
         } finally {
             if (conn != null) {
                 try {
                     conn.close();
                 } catch (SQLException ex) {
-                    LOG.error("",ex);
+                    LOG.error("", ex);
                 }
             }
         }
@@ -174,16 +182,10 @@ public class SprocGatherer extends ADBGatherer {
     private String getSchemasToBeMonitored() throws SQLException {
         String retSqlExcludes = "NOT nspname LIKE ANY (array[";
         String retSqlIncludes = " AND nspname LIKE ANY (array[";
-        String sql = "select scmc_schema_name_pattern as pattern, scmc_is_pattern_included as is_included from sproc_schemas_monitoring_configuration \n" +
-                "where scmc_host_id = 0\n" +
-                "and not exists (select 1 from sproc_schemas_monitoring_configuration where scmc_host_id = " + Integer.toString(host.id) + ")\n" +
-                "union all\n" +
-                "select scmc_schema_name_pattern as pattern, scmc_is_pattern_included as is_included " +
-                "from sproc_schemas_monitoring_configuration where scmc_host_id = " + Integer.toString(host.id);
 
         Connection conn = DBPools.getDataConnection();
         Statement st = conn.createStatement();
-        ResultSet rs = st.executeQuery(sql);
+        ResultSet rs = st.executeQuery(String.format(MONITORED_SCHEMAS_QUERY, host.id, host.id));
 
         while (rs.next()) {
             if (rs.getBoolean("is_included"))

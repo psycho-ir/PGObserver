@@ -7,13 +7,12 @@ graphId = 1
 
 
 class Graph(object):
-
     def __init__(self, graphContainer=None, legendPositions=None, labelWidth=80):
         global graphId
         graphId += 1
 
-        self.legendPositions=legendPositions
-        if self.legendPositions==None:
+        self.legendPositions = legendPositions
+        if self.legendPositions == None:
             self.legendPositions = "left"
 
         self.data = {}
@@ -23,56 +22,61 @@ class Graph(object):
 
     def render(self):
         g = env.get_template('base.html')
-        return g.render(graphContainer=self.graphContainer, data=self.data.values(), legendPosition=self.legendPositions , labelWidth=self.labelWidth)
+        return g.render(graphContainer=self.graphContainer, data=self.data.values(), legendPosition=self.legendPositions, labelWidth=self.labelWidth)
 
     def addPoint(self, name, x, y):
         if not ( name in self.data ):
-            self.addSeries(name,name)
+            self.addSeries(name, name)
 
-        self.data[name]['data'].append({'x':x,'y':y});
+        self.data[name]['data'].append({'x': x, 'y': y});
 
-    def addSeries(self, label, name, color="#00ff00",data = None, yaxis = 1):
+    def addSeries(self, label, name, color="#00ff00", data=None, yaxis=1):
         if data == None:
             data = []
 
-        self.data[name] = { 'label': label,
-                            'name': name,
-                            'color': color,
-                            'data': data,
-                            'yaxis': yaxis
-                          }
+        self.data[name] = {'label': label,
+                           'name': name,
+                           'color': color,
+                           'data': data,
+                           'yaxis': yaxis
+        }
 
-class MultiLegendGraph( Graph ):
+
+class MultiLegendGraph(Graph):
     def __init__(self, graphContainer=None, legendPositions=None):
-        Graph.__init__(self,graphContainer,legendPositions)
+        Graph.__init__(self, graphContainer, legendPositions)
 
     def render(self):
         g = env.get_template('baseMultiLegend.html')
         return g.render(graphContainer=self.graphContainer, data=self.data.values(), legendPosition=self.legendPositions)
 
-class TimeGraph ( Graph ):
+
+class TimeGraph(Graph):
     def __init__(self, graphContainer=None, legendPositions=None):
-        Graph.__init__(self,graphContainer,legendPositions)
+        Graph.__init__(self, graphContainer, legendPositions)
 
     def render(self):
         g = env.get_template('data_time_graph.html')
         return g.render(graphContainer=self.graphContainer, data=self.data.values(), legendPosition=self.legendPositions)
 
-class SizeGraph ( Graph ):
-    def __init__(self, graphContainer=None, legendPositions=None,labelWidth=80):
-        Graph.__init__(self,graphContainer,legendPositions,labelWidth=labelWidth)
+
+class SizeGraph(Graph):
+    def __init__(self, graphContainer=None, legendPositions=None, labelWidth=80):
+        Graph.__init__(self, graphContainer, legendPositions, labelWidth=labelWidth)
 
     def render(self):
         g = env.get_template('data_size_graph.html')
-        return g.render(graphContainer=self.graphContainer, data=self.data.values(), legendPosition=self.legendPositions,labelWidth=self.labelWidth)
+        return g.render(graphContainer=self.graphContainer, data=self.data.values(), legendPosition=self.legendPositions, labelWidth=self.labelWidth)
 
-class BarGraph ( Graph ):
-    def __init__(self, graphContainer=None, legendPositions=None,labelWidth=80):
-        Graph.__init__(self,graphContainer,legendPositions,labelWidth=labelWidth)
+
+class BarGraph(Graph):
+    def __init__(self, graphContainer=None, legendPositions=None, labelWidth=80):
+        Graph.__init__(self, graphContainer, legendPositions, labelWidth=labelWidth)
 
     def render(self):
         g = env.get_template('barBase.html')
-        return g.render(graphContainer=self.graphContainer, data=self.data.values(), legendPosition=self.legendPositions,labelWidth=self.labelWidth)
+        return g.render(graphContainer=self.graphContainer, data=self.data.values(), legendPosition=self.legendPositions, labelWidth=self.labelWidth)
+
 
 class SelectableGraph(Graph):
     def __init__(self, graphContainer=None, choiceContainer=None):

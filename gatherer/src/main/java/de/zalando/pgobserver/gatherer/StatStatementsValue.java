@@ -3,7 +3,7 @@ package de.zalando.pgobserver.gatherer;
 import java.sql.Timestamp;
 
 
-public class StatStatementsValue {
+class StatStatementsValue {
     Timestamp timestamp;
     String query;
     long query_id;
@@ -13,10 +13,12 @@ public class StatStatementsValue {
     long blks_written;
     long temp_blks_read;
     long temp_blks_written;
+    int userId;
 
     @Override
     public String toString() {
         return "StatStatementsValue{" +
+                "userId='" + userId + '\'' +
                 "query='" + query + '\'' +
                 "calls=" + calls +
                 '}';

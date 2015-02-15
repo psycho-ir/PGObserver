@@ -6,20 +6,20 @@
 <div class="container_12">
 
     {% if global_announcement: %}
-    <hr />
+    <hr/>
     <h4 class="global_announcement">{{global_announcement}}</h4>
     {% endif %}
 
     <div class="grid_12">
         <h3>
-        <a href="/sprocs/all/{{hostuiname}}">[list all sprocs]</a>
+            <a href="/sprocs/all/{{hostuiname}}">[list all sprocs]</a>
             &nbsp;<a href="/report/index/{{hostuiname}}">[10 week load report]</a>
 
             {% if 'statStatementsGatherInterval' in features: %}
-                &nbsp;<a href="/perfstatstatements/?hostname={{hostname}}&show=show">[pg_stat_statements details]</a>
+            &nbsp;<a href="/perfstatstatements/?hostname={{hostname}}&show=show">[pg_stat_statements details]</a>
             {% endif %}
             {% if 'blockingStatsGatherInterval' in features: %}
-                &nbsp;<a href="/perflocks/?hostname={{hostname}}&show=show">[blocking locks details]</a>
+            &nbsp;<a href="/perflocks/?hostname={{hostname}}&show=show">[blocking locks details]</a>
             {% endif %}
 
             &nbsp;<a><img id="settings" src="/static/images/settings.png"></a>
@@ -38,6 +38,7 @@
     {% if graph_load: %}
     <div class="grid_12">
         <h4>Load Average 15min Sprocs only</h4>
+
         <div id="graph_load" class="graphc" style="width:100%;height:200px;"></div>
         {{ graph_load }}
     </div>
@@ -49,6 +50,7 @@
 
     <div class="grid_12">
         <h4>WAL volume 15min</h4>
+
         <div id="graph_wal" class="graphc" style="width:100%;height:200px;"></div>
         {{ graph_wal }}
     </div>
@@ -95,12 +97,55 @@
     </div>
     {% endif %}
 
+    <br/>
+
+    {% if top_stats: %}
+    <div class="clear"></div>
+
+    <div class="fluid_grid grid_4">
+        <h3>Top {{ limit }} Statements last 1 hour by total run time</h3>
+        {{ top_stats['hours1total'] }}
+    </div>
+
+    <div class="fluid_grid grid_4">
+        <h3>Top {{ limit }} Statements last 1 hour by total calls</h3>
+        {{ top_stats['hours1calls'] }}
+    </div>
+
+    <div class="gridclear_6 clear"></div>
+
+    <div class="fluid_grid grid_4">
+        <h3>Top {{ limit }} Statements last 1 hour by avg. run time</h3>
+        {{ top_stats['hours1avg'] }}
+    </div>
+
+    <div class="gridclear_4 clear"></div>
+
+    <div class="fluid_grid grid_4">
+        <h3>Top {{ limit }} Statements last 3 hours by total run time</h3>
+        {{ top_stats['hours3total'] }}
+    </div>
+
+    <div class="gridclear_6 clear"></div>
+
+    <div class="fluid_grid grid_4">
+        <h3>Top {{ limit }} Statements last 3 hours by total calls</h3>
+        {{ top_stats['hours3calls'] }}
+    </div>
+
+    <div class="fluid_grid grid_4">
+        <h3>Top {{ limit }} Statements last 3 hours by avg. run time</h3>
+        {{ top_stats['hours3avg'] }}
+    </div>
+    {% endif %}
+
 
     {% if graph_size: %}
     <div class="clear"></div>
 
     <div class="grid_12">
         <h4>Database size <a href="/tables/alltables/{{hostuiname}}">show all tables</a></h4>
+
         <div class="graphc" id="graph_size" style="width:100%;height:200px;"></div>
         <div id="graph_size_choice"></div>
         {{ graph_size }}
@@ -113,6 +158,7 @@
 
     <div class="grid_12">
         <h4>General Database indicators 15min</h4>
+
         <div class="graphc" id="graph_dbstats" style="width:100%;height:200px;"></div>
         <div id="graph_dbstats_div2"></div>
         {{ graph_dbstats }}
@@ -124,9 +170,10 @@
 
     <div class="grid_12">
         <h4>Background Writer</h4>
+
         <div class="graphc" id="graph_bgwriter" style="width:100%;height:200px;"></div>
         {{ graph_checkpoint }}
-   </div>
+    </div>
     {% endif %}
 
     <div class="clear"></div>
@@ -135,20 +182,18 @@
 
 <script type="text/javascript">
     $(document).ready(function () {
-        if ($.cookie('days') != null)
-        {
+        if ($.cookie('days') != null) {
             $("#days").attr('value', $.cookie('days'));
         }
-        if ($.cookie('sprocs_to_show') != null)
-        {
+        if ($.cookie('sprocs_to_show') != null) {
             $("#sprocs_to_show").attr('value', $.cookie('sprocs_to_show'));
         }
 
-        $("#settings").click(function() {
+        $("#settings").click(function () {
             $("#settings_div").toggle();
         });
 
-        $("#save").click(function() {
+        $("#save").click(function () {
             if (parseInt($("#days").val()) <= 0 || parseInt($("#days").val()) > 30) {
                 alert('invalid "days" range! 1 - 30 allowed');
                 return;

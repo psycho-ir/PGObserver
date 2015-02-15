@@ -5,32 +5,16 @@ import time
 import datadb
 import tplE
 from psycopg2.extensions import adapt
+from time_utils import makeTimeIntervalReadable
 
-
-def makeTimeIntervalReadable(micro):
-    s = int(micro/1000)
-    micro %= 1000
-    m  = int(s/60)
-    s %= 60
-    h  = int(m/60)
-    m %= 60
-
-    if h > 0:
-        return str(h) + "h "+ str(m) + "m "+str(s) +"s"
-
-    if m > 0:
-        return str(m) + "m "+str(s)+"."+ '{0:03}'.format(micro) + "s"
-
-    return str(s)+"." + '{0:03}'.format(micro) + "s"
 
 avgRuntimeOrder = "sum(d_total_time) / sum(d_calls) desc"
 totalRuntimeOrder = "sum(d_total_time) desc"
 totalCallsOrder = "sum(d_calls) desc"
 
 
-def getSQL(interval=None,hostId = 1):
-
-    if(interval==None):
+def getSQL(interval=None, hostId=1):
+    if (interval == None):
         interval = ""
     else:
         interval = "AND sp_timestamp > " + interval
@@ -52,9 +36,9 @@ def getSQL(interval=None,hostId = 1):
               ORDER BY date_trunc('hour'::text, t.sp_timestamp) + floor(date_part('minute'::text, t.sp_timestamp) / 15::double precision) * '00:15:00'::interval"""
     return sql;
 
-#@funccache.lru_cache(60,25)
-def getTop10Interval(order=avgRuntimeOrder,interval=None,hostId = 1, limit = 10):
 
+# @funccache.lru_cache(60,25)
+def getTop10Interval(order=avgRuntimeOrder, interval=None, hostId=1, limit=10):
     sql = """select regexp_replace("name", E'(\\\\(.*\\\\))','()') AS "name",
                     round( sum(d_calls) , 0 ) AS "calls",
                     round( sum(d_total_time) , 0 ) AS "totalTime",
@@ -62,7 +46,7 @@ def getTop10Interval(order=avgRuntimeOrder,interval=None,hostId = 1, limit = 10)
                from ( """ + getSQL(interval, hostId) + """) tt
               where d_calls > 0
               group by "name"
-              order by """+order+"""  limit """ + str(adapt(limit))
+              order by """ + order + """  limit """ + str(adapt(limit))
 
     conn = datadb.getDataConnection()
     cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
@@ -80,11 +64,14 @@ def getTop10Interval(order=avgRuntimeOrder,interval=None,hostId = 1, limit = 10)
 
     return sprocs
 
-def getTop10AllTimes(order, hostId = 1):
-    return getTop10Interval(order)
 
-def getTop10LastXHours(order,hours=1, hostId = 1, limit = 10):
-    return getTop10Interval(order,"('now'::timestamp- %s::interval)" % ( adapt("%s hours" % ( hours, )), ), hostId , limit )
+def getTop10AllTimes(order, hostId=1):
+    return getTop10Interval(order, hostId)
+
+
+def getTop10LastXHours(order, hours=1, hostId=1, limit=10):
+    return getTop10Interval(order, "('now'::timestamp- %s::interval)" % (adapt("%s hours" % (hours, )), ), hostId, limit)
+
 
 def getLoad(hostId, days='8'):
     days += 'days'
@@ -99,7 +86,7 @@ def getLoad(hostId, days='8'):
             FROM
               monitor_data.sproc_load_agg
             WHERE
-              sla_host_id = """ +str(adapt(hostId)) + """
+              sla_host_id = """ + str(adapt(hostId)) + """
               AND sla_timestamp > now() - """ + str(adapt(days)) + """::interval
               AND sla_timestamp < now() - '2 hours'::interval
             UNION ALL
@@ -169,10 +156,10 @@ def getLoad(hostId, days='8'):
     conn = datadb.getDataConnection()
     cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-    load = { 'load_15min' : [] }
+    load = {'load_15min': []}
     cur.execute(sql)
     lastTime = None
-    skip15min=0
+    skip15min = 0
 
     for record in cur:
         currentTime = int(time.mktime(record['xaxis'].timetuple()) * 1000)
@@ -180,10 +167,10 @@ def getLoad(hostId, days='8'):
             if currentTime - lastTime > ( 15 * 60 * 1000):
                 skip15min = 2
 
-        if skip15min>0:
+        if skip15min > 0:
             skip15min -= 1
         else:
-            load['load_15min'].append((record['xaxis'], round ( record['load_15min'], 2 ) ) )
+            load['load_15min'].append((record['xaxis'], round(record['load_15min'], 2) ))
 
         lastTime = int(time.mktime(record['xaxis'].timetuple()) * 1000)
 
@@ -193,9 +180,8 @@ def getLoad(hostId, days='8'):
     return load
 
 
-
 def getCpuLoad(hostId, days='8'):
-    load = { "load_15min_avg" : [] , "load_15min_max" : [] }
+    load = {"load_15min_avg": [], "load_15min_max": []}
     days += 'days'
     sql = """ SELECT date_trunc('hour'::text, load_timestamp) + floor(date_part('minute'::text, load_timestamp) / 15::double precision) * '00:15:00'::interval AS load_timestamp,
                      AVG(load_1min_value) AS load_15min_avg,
@@ -205,14 +191,15 @@ def getCpuLoad(hostId, days='8'):
                 ORDER BY 1 ASC """
 
     for record in datadb.execute(sql):
-        load['load_15min_avg'].append( (record['load_timestamp'] , round( float(record['load_15min_avg'])/100,2) ) )
-        load['load_15min_max'].append( (record['load_timestamp'] , round( float(record['load_15min_max'])/100,2) ) )
+        load['load_15min_avg'].append((record['load_timestamp'], round(float(record['load_15min_avg']) / 100, 2) ))
+        load['load_15min_max'].append((record['load_timestamp'], round(float(record['load_15min_max']) / 100, 2) ))
 
     return load
 
+
 # TODO merge with cpuload
 def getWalVolumes(hostId, days='8'):
-    load = { "wal_15min_growth" : []}
+    load = {"wal_15min_growth": []}
     days += 'days'
 
     sql = """
@@ -225,9 +212,10 @@ def getWalVolumes(hostId, days='8'):
             """
 
     for record in datadb.execute(sql):
-        load['wal_15min_growth'].append( (record['load_timestamp'] , record['wal_15min_growth'] ) )
+        load['wal_15min_growth'].append((record['load_timestamp'], record['wal_15min_growth'] ))
 
     return load
+
 
 def getBlockedProcessesCounts(hostId, days='8'):
     ret = []
@@ -279,7 +267,7 @@ ORDER BY
             """
 
     for record in datadb.execute(sql):
-        ret.append( (record['ts'] , record['count'] ) )
+        ret.append((record['ts'], record['count'] ))
 
     return ret
 

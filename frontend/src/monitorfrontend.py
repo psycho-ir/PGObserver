@@ -22,6 +22,8 @@ class MonitorFrontend(object):
         days = (cherrypy.request.cookie['days'].value if 'days' in cherrypy.request.cookie else '8')
         sprocs_to_show = (int(cherrypy.request.cookie['sprocs_to_show'].value) if 'sprocs_to_show'
                                                                                   in cherrypy.request.cookie else 10)
+        stats_to_show = (int(cherrypy.request.cookie['stats_to_show'].value) if 'sprocs_to_show'
+                                                                                in cherrypy.request.cookie else 10)
         graph_load = None
         graph_wal = None
         graph_size = None
@@ -48,7 +50,6 @@ class MonitorFrontend(object):
                 stat_load = topstats.getStatLoad(hostId)
                 for p in stat_load['stat_load_15min']:
                     graph_load.addPoint('statement_load_15min', int(time.mktime(p[0].timetuple()) * 1000), p[1])
-
 
             graph_load = graph_load.render()
 
@@ -104,6 +105,15 @@ class MonitorFrontend(object):
             top_sprocs['hours1calls'] = self.renderTop10LastHours(topsprocs.totalCallsOrder, 1, hostId, sprocs_to_show)
             top_sprocs['hours3calls'] = self.renderTop10LastHours(topsprocs.totalCallsOrder, 3, hostId, sprocs_to_show)
 
+        if tplE._settings['show_top_stats']:
+            top_stats = {}
+            top_stats['hours1avg'] = self.renderTo10StatLastHours(topstats.AVG_RUNTIME_ORDER, 1, hostId, stats_to_show)
+            top_stats['hours3avg'] = self.renderTo10StatLastHours(topstats.AVG_RUNTIME_ORDER, 3, hostId, stats_to_show)
+            top_stats['hours1total'] = self.renderTo10StatLastHours(topstats.TOTAL_RUNTIME_ORDER, 1, hostId, stats_to_show)
+            top_stats['hours3total'] = self.renderTo10StatLastHours(topstats.TOTAL_RUNTIME_ORDER, 3, hostId, stats_to_show)
+            top_stats['hours1calls'] = self.renderTo10StatLastHours(topstats.TOTAL_CALLS_ORDER, 1, hostId, stats_to_show)
+            top_stats['hours3calls'] = self.renderTo10StatLastHours(topstats.TOTAL_CALLS_ORDER, 3, hostId, stats_to_show)
+
         tmpl = tplE.env.get_template('index.html')
         return tmpl.render(
             hostid=hostId,
@@ -115,6 +125,7 @@ class MonitorFrontend(object):
             graph_dbstats=graph_dbstats,
             graph_checkpoint=self.get_rendered_bgwriter_graph(int(days)),
             top_sprocs=top_sprocs,
+            top_stats = top_stats,
             limit=sprocs_to_show,
             features=hosts.getActiveFeatures(hostId),
             global_announcement=global_announcement,
@@ -167,6 +178,11 @@ class MonitorFrontend(object):
         table = tplE.env.get_template('table.html')
         return table.render(hostid=hostId, hostuiname=hosts.hostIdToUiShortname(hostId),
                             list=topsprocs.getTop10LastXHours(order, hours, hostId, limit))
+
+    def renderTo10StatLastHours(self, order, hours, hostId, limit):
+        table = tplE.env.get_template('stat_table.html')
+        return table.render(hostId=hostId, hostuiname=hosts.hostIdToUiShortname(hostId),
+                            list=topstats.getTop10LastXHours(order, hours, hostId, limit))
 
     index.exposed = False
     default.exposed = True

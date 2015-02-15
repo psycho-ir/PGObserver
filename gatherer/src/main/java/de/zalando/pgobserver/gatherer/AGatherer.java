@@ -90,7 +90,7 @@ public abstract class AGatherer implements Runnable {
     public void schedule() {
         if (intervalInSeconds > 0) {
             LOG.log(Level.SEVERE, "Schedule: Interval {0} for Host: {1}", new Object[]{intervalInSeconds, hostName});
-            executor.scheduleAtFixedRate(this, 1, intervalInSeconds, TimeUnit.SECONDS);
+            executor.scheduleWithFixedDelay(this, 1, intervalInSeconds, TimeUnit.SECONDS); //to prevent executions overlapping, i have changed scheduleAtFixedRate to scheduleWithFixedDelay
         } else {
             LOG.log(Level.SEVERE, "Interval 0 for Host: {}", hostName);
         }

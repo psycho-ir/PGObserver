@@ -1,0 +1,14 @@
+<table class="frontTable noBorder" cellpadding="10">
+    <thead>
+    <th style="width: 20%; text-wrap: normal;">Query</th>
+    <th>Calls</th>
+    <th>Total Time</th>
+    </thead>
+    {% for row in list: %}
+    <tr  style="padding-bottom: 5px;">
+        <td align="left" >{{ row.ssd_query }}</td>
+        <td align="left">{{ row.ssd_calls }}</td>
+        <td align="left">{{ row.ssd_total_time }}</td>
+    </tr>
+    {% endfor %}
+</table>

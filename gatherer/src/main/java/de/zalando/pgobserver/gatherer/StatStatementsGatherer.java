@@ -70,24 +70,41 @@ public class StatStatementsGatherer extends ADBGatherer {
 
                 PreparedStatement ps = conn.prepareStatement(
                         "INSERT INTO monitor_data.stat_statements_data (ssd_timestamp, ssd_host_id, ssd_query, ssd_query_id, ssd_calls,"
-                            + " ssd_total_time, ssd_blks_read, ssd_blks_written, ssd_temp_blks_read, ssd_temp_blks_written,ssd_user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?);");
+                                + " ssd_total_time, ssd_blks_read, ssd_blks_written, ssd_temp_blks_read, ssd_temp_blks_written,ssd_user_id)  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?);");
+
+                PreparedStatement selectST = conn.prepareStatement("select * from monitor_data.stat_statements_data where ssd_query =? and ssd_user_id=? and ssd_host_id=? order by ssd_timestamp desc limit 1");
+
 
                 while (!valueStore.isEmpty()) {
-
                     v = valueStore.remove(valueStore.size() - 1);
 
-                    ps.setTimestamp(1, v.timestamp);
-                    ps.setInt(2, host.id);
-                    ps.setString(3, v.query);
-                    ps.setLong(4, getLongHashForQuery(v.query)); // will be provided by 9.4, calculating here for now
-                    ps.setLong(5, v.calls);
-                    ps.setLong(6, v.total_time);
-                    ps.setLong(7, v.blks_read);
-                    ps.setLong(8, v.blks_written);
-                    ps.setLong(9, v.temp_blks_read);
-                    ps.setLong(10, v.temp_blks_written);
-                    ps.setInt(11, v.userId);
-                    ps.execute();
+                    selectST.setString(1, v.query);
+                    selectST.setInt(2, v.userId);
+                    selectST.setInt(3, host.id);
+                    ResultSet resultSet = selectST.executeQuery();
+                    if (resultSet.next()) {
+                        v.calls -= resultSet.getInt("ssd_calls");
+                        v.total_time -= resultSet.getInt("ssd_total_time");
+                        v.blks_read -= resultSet.getInt("ssd_blks_read");
+                        v.blks_written -= resultSet.getInt("ssd_blks_written");
+                        v.temp_blks_read -= resultSet.getInt("ssd_temp_blks_read");
+                        v.temp_blks_written -= resultSet.getInt("ssd_temp_blks_written");
+                    }
+                    if (v.calls > 0) {
+
+                        ps.setTimestamp(1, v.timestamp);
+                        ps.setInt(2, host.id);
+                        ps.setString(3, v.query);
+                        ps.setLong(4, getLongHashForQuery(v.query)); // will be provided by 9.4, calculating here for now
+                        ps.setLong(5, v.calls);
+                        ps.setLong(6, v.total_time);
+                        ps.setLong(7, v.blks_read);
+                        ps.setLong(8, v.blks_written);
+                        ps.setLong(9, v.temp_blks_read);
+                        ps.setLong(10, v.temp_blks_written);
+                        ps.setInt(11, v.userId);
+                        ps.execute();
+                    }
 
                 }
 
@@ -121,7 +138,7 @@ public class StatStatementsGatherer extends ADBGatherer {
         String sql = "with q_data as (\n" +
                 "      select\n" +
                 "      now() as timestamp,\n" +
-                "      s.userId,\n"+
+                "      s.userId,\n" +
                 "      s.query,\n" +
                 "      sum(s.calls) as calls,\n" +
                 "      round(sum(s.total_time))::int8 as total_time,\n" +

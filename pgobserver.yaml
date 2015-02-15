@@ -25,6 +25,8 @@ features:
   show_stat_load: true
   show_wal: true
   show_top_sprocs: true
+  show_top_stats: true
+  filter_top_stats_for_users: []
   show_db_size: true
   show_db_stats: true
   opengrok_baseurl: ""

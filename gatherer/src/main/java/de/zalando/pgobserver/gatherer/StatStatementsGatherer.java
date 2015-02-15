@@ -72,7 +72,7 @@ public class StatStatementsGatherer extends ADBGatherer {
                         "INSERT INTO monitor_data.stat_statements_data (ssd_timestamp, ssd_host_id, ssd_query, ssd_query_id, ssd_calls,"
                                 + " ssd_total_time, ssd_blks_read, ssd_blks_written, ssd_temp_blks_read, ssd_temp_blks_written,ssd_user_id)  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?);");
 
-                PreparedStatement selectST = conn.prepareStatement("select * from monitor_data.stat_statements_data where ssd_query =? and ssd_user_id=? and ssd_host_id=? order by ssd_timestamp desc limit 1");
+                PreparedStatement selectST = conn.prepareStatement("select sum(ssd_calls) ssd_calls,sum(ssd_total_time) ssd_total_time,sum(ssd_blks_read) ssd_blks_read,sum(ssd_blks_written) ssd_blks_written,sum(ssd_temp_blks_read) ssd_temp_blks_read,sum(ssd_temp_blks_written) ssd_temp_blks_written from monitor_data.stat_statements_data where ssd_query =? and ssd_user_id=? and ssd_host_id=?");
 
 
                 while (!valueStore.isEmpty()) {

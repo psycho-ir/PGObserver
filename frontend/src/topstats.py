@@ -1,9 +1,68 @@
 import psycopg2
 import time
+from time_utils import makeTimeIntervalReadable
 import tplE, datadb
 from psycopg2._psycopg import adapt
 
 __author__ = 'soroosh'
+import tplE
+
+AVG_RUNTIME_ORDER = "sum(ssd_total_time) / sum(ssd_calls) desc"
+TOTAL_RUNTIME_ORDER = "sum(ssd_total_time) desc"
+TOTAL_CALLS_ORDER = "sum(ssd_calls) desc"
+
+
+def getSQL(interval=None, hostId=1):
+    selected_users = tplE._settings["filter_top_stats_for_users"]
+    user_filter_query = ""
+    if interval:
+        interval = "AND ssd_timestamp > " + interval
+    else:
+        interval = ""
+
+    if selected_users and len(selected_users) > 0:
+        user_filter_query = "AND ssd_user_id IN (%s)" % (reduce(lambda x, y: str(x) + ',' + str(y), selected_users))
+
+    sql = """select ssd_query,sum(ssd_calls) ssd_calls,sum(ssd_total_time) ssd_total_time,sum(ssd_blks_read) ssd_blks_read,sum(ssd_blks_written) ssd_blks_written,sum(ssd_temp_blks_read) ssd_temp_blks_read,sum(ssd_temp_blks_written) ssd_temp_blks_written
+              from stat_statements_data
+              where
+              ssd_host_id = %s
+              %s
+              %s
+              group by ssd_query"""
+
+    return sql % (hostId, user_filter_query, interval)
+
+
+def getTop10Interval(order=AVG_RUNTIME_ORDER, interval=None, hostId=1, limit=10):
+    sql = getSQL(interval, hostId) + " order by " + order + " limit " + str(limit)
+
+    conn = datadb.getDataConnection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+    cur.execute(sql)
+
+    stats = []
+
+    for record in cur:
+        record['ssd_total_time'] = makeTimeIntervalReadable(record['ssd_total_time'])
+        record['ssd_blks_read'] = makeTimeIntervalReadable(record['ssd_blks_read'])
+        record['ssd_blks_written'] = makeTimeIntervalReadable(record['ssd_blks_written'])
+        record['ssd_temp_blks_read'] = makeTimeIntervalReadable(record['ssd_temp_blks_read'])
+        record['ssd_temp_blks_written'] = makeTimeIntervalReadable(record['ssd_temp_blks_written'])
+        stats.append(record)
+
+    conn.close()
+
+    return stats
+
+
+def getTop10AllTimes(order, hostId=1):
+    return getTop10Interval(order)
+
+
+def getTop10LastXHours(order, hours=1, hostId=1, limit=10):
+    return getTop10Interval(order, "('now'::timestamp - %s::interval)" % ( adapt("%s hours" % ( hours, )), ), hostId, limit)
 
 
 def getStatLoad(hostId, days='8'):
